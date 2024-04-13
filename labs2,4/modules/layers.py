@@ -3,7 +3,6 @@ from typing import List
 
 from numpy.core.multiarray import array as array
 from .base import Module
-from scipy import signal
 
 class Linear(Module):
     def __init__(self, in_features: int, out_features: int, bias: bool = True):
@@ -59,30 +58,47 @@ class Conv2d(Module):
         self.grad_bias = np.zeros_like(self.bias) if bias else None
         self.out_channels = out_channels
         self.kernel_size = kernel_size
+        self.stride = 1
+        self.cache = None
+    def getWindows(self, input: np.array, output_size: int, kernel_size: int, padding: int = 0, stride: int = 1, dilate: int = 0):
+        working_input = input
+        working_pad = padding
+        if dilate != 0:
+            working_input = np.insert(working_input, range(1, input.shape[2]), 0, axis=2)
+            working_input = np.insert(working_input, range(1, input.shape[3]), 0, axis=3)
+
+        if working_pad != 0: 
+            working_input = np.pad(working_input, pad_width=((0,), (0,), (working_pad,), (working_pad,)), mode='constant', constant_values=(0.,))
+
+        _, _, out_h, out_w = output_size
+        out_b, out_c, _, _ = input.shape
+        batch_str, channel_str, kern_h_str, kern_w_str = working_input.strides
+        return np.lib.stride_tricks.as_strided(
+            working_input,
+            (out_b, out_c, out_h, out_w, kernel_size, kernel_size),
+            (batch_str, channel_str, stride * kern_h_str, stride * kern_w_str, kern_h_str, kern_w_str)
+        )
     def compute_output(self, input: np.array) -> np.array:
-        Y = np.zeros((input.shape[0], self.out_channels, input.shape[2] - self.kernel_size + 1, input.shape[3] - self.kernel_size + 1))
-        for i in range(input.shape[0]):
-            for out_channel in range(self.out_channels):
-                for in_channel in range(input.shape[1]):
-                    Y[i, out_channel] += signal.correlate2d(input[i, in_channel], self.weight[out_channel, in_channel], mode='valid')
-                if self.bias is not None:
-                    Y[i, out_channel] += self.bias[out_channel]
-        return Y
+        n, c, h, w = input.shape
+        out_h = (h - self.kernel_size) // self.stride + 1
+        out_w = (w - self.kernel_size) // self.stride + 1
+        windows = self.getWindows(input, (n, c, out_h, out_w), self.kernel_size, self.padding, self.stride)
+        out = np.einsum('bihwkl,oikl->bohw', windows, self.weight)
+        if self.bias is not None:
+            out += self.bias[None, :, None, None]
+        self.cache = windows
+        return out
     def compute_grad_input(self, input: np.array, grad_output: np.array) -> np.array:
-        grad_input = np.zeros_like(input)
-        for k in range(input.shape[0]):
-            for i in range(self.weight.shape[0]):
-                for j in range(self.weight.shape[1]):
-                    grad_input[k, j] += signal.convolve2d(grad_output[k][i], self.weight[i][j], mode='full')
-        return grad_input
+        padding = self.kernel_size - 1
+        dout_windows = self.getWindows(grad_output, input.shape, self.kernel_size, padding = padding, stride = 1, dilate = self.stride - 1)
+        rot_kern = np.rot90(self.weight, 2, axes=(2, 3))
+        return np.einsum('bohwkl,oikl->bihw', dout_windows, rot_kern)
 
     def update_grad_parameters(self, input: np.array, grad_output: np.array):
-        for k in range(input.shape[0]):
-            for i in range(self.weight.shape[0]):
-                for j in range(self.weight.shape[1]):
-                    self.grad_weight[i, j] += signal.correlate2d(input[k, j], grad_output[k, i], mode='valid')
-        if self.bias is not None:
-            self.grad_bias += np.sum(grad_output, axis=(0, 2, 3))
+        windows = self.cache
+        self.grad_weight += np.einsum('bihwkl,bohw->oikl', windows, grad_output)
+        if self.grad_bias is not None:
+            self.grad_bias += np.sum(grad_output, axis = (0, 2, 3))
     def zero_grad(self):
         self.grad_weight.fill(0)
         if self.bias is not None:
