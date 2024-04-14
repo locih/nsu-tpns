@@ -82,7 +82,7 @@ class Conv2d(Module):
         n, c, h, w = input.shape
         out_h = (h - self.kernel_size) // self.stride + 1
         out_w = (w - self.kernel_size) // self.stride + 1
-        windows = self.getWindows(input, (n, c, out_h, out_w), self.kernel_size, self.padding, self.stride)
+        windows = self.getWindows(input, (n, c, out_h, out_w), self.kernel_size, 0, self.stride)
         out = np.einsum('bihwkl,oikl->bohw', windows, self.weight)
         if self.bias is not None:
             out += self.bias[None, :, None, None]
