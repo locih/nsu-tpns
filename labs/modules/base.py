@@ -8,26 +8,26 @@ class Module(ABC):
         self.training = True
 
     @abstractmethod
-    def compute_output(self, input: np.array) -> np.array:
+    def compute_output(self, input, *args, **kwargs) -> np.array:
         raise NotImplementedError
 
     @abstractmethod
-    def compute_grad_input(self, input: np.array, grad_output: np.array) -> np.array:
+    def compute_grad_input(self, input, *args, **kwargs) -> np.array:
         raise NotImplementedError
-
-    def update_grad_parameters(self, input: np.array, grad_output: np.array):
+    
+    def update_grad_parameters(self, input, *args, **kwargs):
         pass
 
-    def __call__(self, input: np.array) -> np.array:
-        return self.forward(input)
+    def __call__(self, input: np.array, *args, **kwargs) -> np.array:
+        return self.forward(input, *args, **kwargs)
 
-    def forward(self, input: np.array) -> np.array:
-        self.output = self.compute_output(input)
+    def forward(self, input: np.array, *args, **kwargs) -> np.array:
+        self.output = self.compute_output(input, *args, **kwargs)
         return self.output
 
-    def backward(self, input: np.array, grad_output: np.array) -> np.array:
-        grad_input = self.compute_grad_input(input, grad_output)
-        self.update_grad_parameters(input, grad_output)
+    def backward(self, input: np.array, *args, **kwargs) -> np.array:
+        grad_input = self.compute_grad_input(input, *args, **kwargs)
+        self.update_grad_parameters(input, *args, **kwargs)
         return grad_input
 
     def train(self):

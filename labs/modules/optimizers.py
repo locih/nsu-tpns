@@ -4,7 +4,7 @@ from .base import Module, Optimizer
 
 
 class SGD(Optimizer):
-    def __init__(self, module: Module, lr: float = 1e-2, momentum: float = 0.0,
+    def __init__(self, module: Module, lr: float = 1e-3, momentum: float = 0.0,
                  weight_decay: float = 0.0):
         super().__init__(module)
         self.lr = lr
@@ -16,12 +16,10 @@ class SGD(Optimizer):
         gradients = self.module.parameters_grad()
         if 'm' not in self.state:
             self.state['m'] = [np.zeros_like(param) for param in parameters]
-
         for param, grad, m in zip(parameters, gradients, self.state['m']):
             g = grad + self.weight_decay * param
             np.add(self.momentum * m, g, out = m)
             np.add(param, -self.lr * m, out = param)
-            pass
 
 
 class Adam(Optimizer):

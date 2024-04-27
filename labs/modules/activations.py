@@ -1,7 +1,7 @@
 import numpy as np
+from numpy.core.multiarray import array as array
 from scipy.special import expit, softmax, log_softmax
 from .base import Module
-
 
 class ReLU(Module):
     def compute_output(self, input: np.array) -> np.array:
@@ -10,6 +10,11 @@ class ReLU(Module):
     def compute_grad_input(self, input: np.array, grad_output: np.array) -> np.array:
         return grad_output * np.where(input > 0, 1, 0)
 
+class Tanh(Module):
+    def compute_output(self, input: np.array) -> np.array:
+        return np.tanh(input)
+    def compute_grad_input(self, input: np.array, grad_output: np.array) -> np.array:
+        return grad_output * (1 - (self.compute_output(input) ** 2))
 
 class Sigmoid(Module):
     def compute_output(self, input: np.array) -> np.array:

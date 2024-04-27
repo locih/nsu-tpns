@@ -27,7 +27,6 @@ class Linear(Module):
         if self.bias is not None:
             self.grad_bias += np.sum(grad_output, axis = 0)
         self.grad_weight += grad_output.T @ input
-        super().update_grad_parameters(input, grad_output)
 
     def zero_grad(self):
         self.grad_weight.fill(0)

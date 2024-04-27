@@ -15,7 +15,8 @@ def test_activations():
     print('test_activations ... ', end='')
     module_pairs = [
         (mm.ReLU, nn.ReLU), (mm.Sigmoid, nn.Sigmoid),
-        (mm.Softmax, nn.Softmax), (mm.LogSoftmax, nn.LogSoftmax)
+        (mm.Softmax, nn.Softmax), (mm.LogSoftmax, nn.LogSoftmax),
+        (mm.Tanh, nn.Tanh)
     ]
     for input_shape in input_shapes:
         for custom_module, torch_module in module_pairs:
